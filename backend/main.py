@@ -21,10 +21,42 @@ app = Flask(__name__)
 
 df = pd.read_csv('final.csv')
 GOOGLE_API_KEY = "AIzaSyBYtrF_jcKp0uNsx7zH00ZjOyz4bC8SUTY"
-
+API_URL = "https://api-inference.huggingface.co/models/runwayml/stable-diffusion-v1-5"
+HEADERS = {"Authorization": "Bearer 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"}
 genai.configure(api_key=GOOGLE_API_KEY)
 with open('similar.pkl', 'rb') as file:
     model = pickle.load(file)
+
+
+@app.route('/query', methods=['POST'])
+def query():
+    try:
+        # Get the JSON data from the request
+        json_data = request.get_json()
+
+        # Extract the 'txt' field from the JSON data
+        txt = json_data.get('txt')
+
+        # Send the 'txt' data to the Hugging Face model
+        response = requests.post(API_URL, headers=HEADERS, json={"inputs": txt})
+        image_bytes = response.content
+
+        # Convert the image bytes to PIL Image
+        image = Image.open(BytesIO(image_bytes))
+
+        # Save the image to a file (optional)
+        image.save('output.jpg')
+
+        # Return the image as a response
+        img_io = BytesIO()
+        image.save(img_io, 'JPEG')
+        img_io.seek(0)
+
+        return send_file(img_io, mimetype='image/jpeg', as_attachment=True, download_name='output.jpg')
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 
 def get_related_products(index, num_products=10):
     if index < 0 or index >= len(df):
@@ -84,24 +116,10 @@ def desc():
     
     # Assuming 'genai' and 'to_markdown' functions are defined elsewhere
     model = genai.GenerativeModel('gemini-pro-vision')
-    
-    # Modify the input to include the desired prompt
     prompt = 'Generate a story in 300-400 words based on its history of design and significance. Please do not include "\n" or new line'
     response = model.generate_content([prompt, img])
-
     description = to_markdown(response.text)
-    # description = re.sub('\n> ', '', description)
-    # description = description.replace("\n> ", "")
-    # description = re.sub('\n> ', '', description)
-    # lines = description.split('\n')
     lines = description.split('\r\n')
-
-# Filter out lines starting with "> "
-    # cleaned_lines = [line for line in lines if not line.startswith('> ')] 
-
-    # Join back to string
-    # description = '\n'.join(cleaned_lines)
-    # cleaned = re.sub(r'> .*', '', description)
     print(description)
     return jsonify({'description': description})
 
