@@ -20,12 +20,22 @@ from sklearn.model_selection import train_test_split
 
 app = Flask(__name__)
 
+df_demo = pd.read_csv('Demographic_Data_Orig.csv')
+df_demo.drop(columns=['ip.address', 'full.name'], axis=1, inplace=True)
+selected_columns = ['region', 'in.store', 'age', 'items', 'amount']
+df_demo = df_demo[selected_columns]
+y = df_demo['amount']
+X = df_demo.drop('amount', axis=1)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
 
 df = pd.read_csv('final.csv')
 GOOGLE_API_KEY = "AIzaSyBYtrF_jcKp0uNsx7zH00ZjOyz4bC8SUTY"
 API_URL = "https://api-inference.huggingface.co/models/runwayml/stable-diffusion-v1-5"
 HEADERS = {"Authorization": "Bearer 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"}
 genai.configure(api_key=GOOGLE_API_KEY)
+
+
 with open('similar.pkl', 'rb') as file:
     model = pickle.load(file)
 with open('shap_explainer.pkl', 'rb') as model_shap:
@@ -131,7 +141,10 @@ def desc():
 @app.route('/xai', methods=["POST"])
 def xai():
     explainer = shap.TreeExplainer(gbm)
-    shap_values = explainer.shap_values()
+    shap_values = explainer.shap_values(X_test)
+    # return shap_values
+    return jsonify({'shap_values': shap_values.tolist()})
+
 if __name__ == '__main__':
     # app.run(debug=False)
     app.run(host='0.0.0.0', port=3001)
