@@ -12,6 +12,8 @@ import textwrap
 import google.generativeai as genai
 from IPython.display import display
 from IPython.display import Markdown
+import requests
+from io import BytesIO
 
 
 app = Flask(__name__)
@@ -58,21 +60,38 @@ def market():
 
 
 def to_markdown(text):
-  text = text.replace('•', '  *')
-  return Markdown(textwrap.indent(text, '> ', predicate=lambda _: True))
+    text = text.replace('•', '  *')
+    return textwrap.indent(text, '> ', predicate=lambda _: True)
 
 
 @app.route('/description', methods=["POST"])
 def desc():
-    img = request.files['file']
-    img = Image.open(file)
+    # Get the image URL from the JSON request
+    json_data = request.get_json()
+    img_url = json_data.get('url')
 
+    if not img_url:
+        return jsonify({'error': 'Image URL not provided'})
+
+    # Download the image from the URL
+    response = requests.get(img_url)
+
+    if response.status_code != 200:
+        return jsonify({'error': 'Failed to download the image'})
+
+    # Process the downloaded image
+    img = Image.open(BytesIO(response.content))
+    
+    # Assuming 'genai' and 'to_markdown' functions are defined elsewhere
     model = genai.GenerativeModel('gemini-pro-vision')
-    response = model.generate_content(img)
+    
+    # Modify the input to include the desired prompt
+    prompt = 'Generate a story in 300-400 words based on its history of design and significance'
+    response = model.generate_content([prompt, img])
 
     description = to_markdown(response.text)
-
-    return description
+    print(description)
+    return jsonify({'description': description})
 
 if __name__ == '__main__':
     # app.run(debug=False)
