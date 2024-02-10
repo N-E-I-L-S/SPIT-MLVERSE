@@ -86,10 +86,22 @@ def desc():
     model = genai.GenerativeModel('gemini-pro-vision')
     
     # Modify the input to include the desired prompt
-    prompt = 'Generate a story in 300-400 words based on its history of design and significance'
+    prompt = 'Generate a story in 300-400 words based on its history of design and significance. Please do not include "\n" or new line'
     response = model.generate_content([prompt, img])
 
     description = to_markdown(response.text)
+    # description = re.sub('\n> ', '', description)
+    # description = description.replace("\n> ", "")
+    # description = re.sub('\n> ', '', description)
+    # lines = description.split('\n')
+    lines = description.split('\r\n')
+
+# Filter out lines starting with "> "
+    # cleaned_lines = [line for line in lines if not line.startswith('> ')] 
+
+    # Join back to string
+    # description = '\n'.join(cleaned_lines)
+    # cleaned = re.sub(r'> .*', '', description)
     print(description)
     return jsonify({'description': description})
 
