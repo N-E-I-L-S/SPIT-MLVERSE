@@ -33,7 +33,7 @@ def get_related_products(index, num_products=10):
     sim_scores = list(enumerate(model[index]))
     sim_scores = sorted(sim_scores, key=lambda x: x[1], reverse=True)
     sim_indices = [i[0] for i in sim_scores[1:num_products+1]]
-    return df.iloc[sim_indices][['url', 'name', 'price', 'currency', 'description','images', 'Last_Category']]
+    return df.iloc[sim_indices][['name', 'images']]
 
 @app.route('/recommend', methods=['POST'])
 def recommend():
