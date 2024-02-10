@@ -14,6 +14,8 @@ from IPython.display import display
 from IPython.display import Markdown
 import requests
 from io import BytesIO
+import shap
+from sklearn.model_selection import train_test_split
 
 
 app = Flask(__name__)
@@ -26,7 +28,10 @@ HEADERS = {"Authorization": "Bearer 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"}
 genai.configure(api_key=GOOGLE_API_KEY)
 with open('similar.pkl', 'rb') as file:
     model = pickle.load(file)
-
+with open('shap_explainer.pkl', 'rb') as model_shap:
+    explainer = pickle.load(model_shap)
+with open('gbm_model.pkl', 'rb') as gbm:
+    gbm = pickle.load(gbm)
 
 @app.route('/query', methods=['POST'])
 def query():
@@ -123,6 +128,10 @@ def desc():
     print(description)
     return jsonify({'description': description})
 
+@app.route('/xai', methods=["POST"])
+def xai():
+    explainer = shap.TreeExplainer(gbm)
+    shap_values = explainer.shap_values()
 if __name__ == '__main__':
     # app.run(debug=False)
     app.run(host='0.0.0.0', port=3001)
