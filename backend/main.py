@@ -16,9 +16,11 @@ import requests
 from io import BytesIO
 import shap
 from sklearn.model_selection import train_test_split
+import numpy as np
 
 
 app = Flask(__name__)
+
 
 df_demo = pd.read_csv('Demographic_Data_Orig.csv')
 df_demo.drop(columns=['ip.address', 'full.name'], axis=1, inplace=True)
@@ -35,6 +37,15 @@ API_URL = "https://api-inference.huggingface.co/models/runwayml/stable-diffusion
 HEADERS = {"Authorization": "Bearer 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"}
 genai.configure(api_key=GOOGLE_API_KEY)
 
+
+products = df['name'].tolist()
+num_products = len(products)
+num_actions = num_products
+q_table = np.zeros((num_products, num_actions))
+
+learning_rate = 0.1
+discount_factor = 0.9
+epsilon = 0.1
 
 with open('similar.pkl', 'rb') as file:
     model = pickle.load(file)
@@ -144,6 +155,52 @@ def xai():
     shap_values = explainer.shap_values(X_test)
     # return shap_values
     return jsonify({'shap_values': shap_values.tolist()})
+
+@app.route('/recommend_rl', methods=['POST'])
+def recommend_rl():
+    try:
+        # Get user interaction data from the request
+        interaction_data = request.json
+        current_product = interaction_data.get('current_product')
+        chosen_product = interaction_data.get('chosen_product')
+        reward = 1
+
+        # Update Q-value based on the user's feedback
+        update_q_value(current_product, chosen_product, reward)
+
+        # Recommend multiple products using the Q-values
+        recommended_products = recommend_products(current_product, num_recommendations=5)
+        q_values_table = q_table.tolist()
+
+        return jsonify({'recommended_products': recommended_products, 'q_values_table': q_values_table})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+def update_q_value(current_product, chosen_product, reward):
+    current_product_index = products.index(current_product)
+    chosen_product_index = products.index(chosen_product)
+
+    # Q-learning update rule
+    q_value = q_table[current_product_index, chosen_product_index]
+    max_next_q_value = np.max(q_table[chosen_product_index, :])
+    new_q_value = (1 - learning_rate) * q_value + learning_rate * (reward + discount_factor * max_next_q_value)
+    q_table[current_product_index, chosen_product_index] = new_q_value
+
+def recommend_products(current_product, num_recommendations=5):
+    current_product_index = products.index(current_product)
+
+    # Epsilon-greedy strategy
+    if np.random.uniform(0, 1) < epsilon:
+        # Exploration: Randomly choose multiple actions
+        recommended_product_indices = np.random.choice(num_actions, size=num_recommendations, replace=False)
+    else:
+        # Exploitation: Choose multiple actions with the highest Q-values
+        recommended_product_indices = np.argsort(q_table[current_product_index, :])[::-1][:num_recommendations]
+
+    recommended_products = [products[idx] for idx in recommended_product_indices]
+    return recommended_products
+
+
 
 if __name__ == '__main__':
     # app.run(debug=False)
