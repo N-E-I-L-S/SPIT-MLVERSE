@@ -177,8 +177,8 @@ def recommend_rl():
         return jsonify({'error': str(e)}), 500
 
 def update_q_value(current_product, chosen_product, reward):
-    current_product_index = current_product
-    chosen_product_index = chosen_product
+    current_product_index = products.index(current_product)
+    chosen_product_index = products.index(chosen_product)
 
     # Q-learning update rule
     q_value = q_table[current_product_index, chosen_product_index]
@@ -187,7 +187,7 @@ def update_q_value(current_product, chosen_product, reward):
     q_table[current_product_index, chosen_product_index] = new_q_value
 
 def recommend_products(current_product, num_recommendations=5):
-    current_product_index = current_product
+    current_product_index = products.index(current_product)
 
     # Epsilon-greedy strategy
     if np.random.uniform(0, 1) < epsilon:
